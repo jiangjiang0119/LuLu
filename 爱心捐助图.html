@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>小红花温暖记录 · LULU</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: #f5e8ec;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    display: flex;
+    justify-content: center;
+    color: #4a353b;
+    margin: 0;
+  }
+
+  /* 海报画布：上下紧凑，宽度撑满 */
+  .poster-canvas {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    padding: 32px 0 0; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+    background-color: #fceef2;
+    background-image: 
+      radial-gradient(circle at 20% 15%, #fff9fb 0%, transparent 50%),
+      radial-gradient(circle at 85% 80%, #f7cbd8 0%, transparent 55%),
+      linear-gradient(180deg, #fff6f8 0%, #f9dce6 55%, #f5cedb 100%);
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* 1. 上方截图区域：固定 88% 宽度，12px 圆角 */
+  .cert-window-wrap {
+    position: relative;
+    width: 88%;
+    border-radius: 12px;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.52);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 
+      0 12px 28px rgba(140, 75, 95, 0.12),
+      0 2px 6px rgba(140, 75, 95, 0.05);
+    z-index: 2;
+    margin-bottom: 24px;
+  }
+
+  /* 严格 920 : 1490 比例展示框 */
+  .cert-aspect-box {
+    width: 100%;
+    aspect-ratio: 920 / 1483;
+    border-radius: 9px;
+    overflow: hidden;
+    position: relative;
+    background: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+  }
+
+  /* 图片定位基准（具体位移由下面 JS 智能匹配） */
+  .cert-aspect-box img {
+    position: absolute;
+    height: auto;
+    display: none;
+    user-select: none;
+  }
+
+  .cert-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    text-align: center;
+    color: #9e7882;
+    font-size: 12.5px;
+  }
+
+  /* 2. 下方文字容器：宽度 100% 撑满屏幕，0 圆角 */
+  .glass-text-card {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    border-radius: 0; 
+    padding: 8px; 
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-top: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 -4px 20px rgba(145, 80, 100, 0.08);
+    text-align: center;
+  }
+
+  /* 内圈细线 */
+  .glass-inner-line {
+    border: 1px solid rgba(180, 125, 140, 0.35);
+    padding: 18px 14px 10px;
+    position: relative;
+  }
+
+  /* 悬浮小红花徽章 */
+  .floating-flower {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #ffffff;
+    box-shadow: 0 4px 10px rgba(226, 75, 98, 0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 买家网名栏 */
+  .buyer-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .buyer-sub {
+    font-size: 12px;
+    color: #7d5c65;
+    letter-spacing: 0.5px;
+  }
+
+  /* 楷体 + 加粗斜体 + 绯红波浪线〰️ + 星光✨ */
+  .buyer-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: '楷体', 'KaiTi', 'STKaiti', serif;
+    font-weight: bold;
+    font-style: italic;
+    font-size: 17.5px;
+    color: #4a3036;
+    text-decoration: underline;
+    text-decoration-style: wavy;
+    text-decoration-color: #d93b55;
+    text-underline-offset: 4.5px;
+    padding: 0 4px;
+  }
+
+  /* 小红花正文 */
+  .quote-body {
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #593e46;
+    letter-spacing: 0.3px;
+    margin-bottom: 12px;
+    white-space: pre-line;
+  }
+
+  .quote-body .hl {
+    color: #d93b55;
+    font-weight: 600;
+    padding: 0 1px;
+  }
+
+  /* 底部隐藏抽屉开关（极简落款） */
+  .glass-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(180, 125, 140, 0.32);
+    font-size: 11px;
+    color: #87656e;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .foot-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ================= 隐藏编辑抽屉（去掉了所有反人类滑块！） ================= */
+  .drawer-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(35, 25, 28, 0.35);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 99;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .drawer-mask.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .drawer-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    background: #ffffff;
+    border-radius: 14px 14px 0 0;
+    padding: 12px 18px 24px;
+    max-height: 82vh;
+    overflow-y: auto;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.14);
+    transform: translateY(105%);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .drawer-sheet.open {
+    transform: translateY(0);
+  }
+
+  .sheet-bar {
+    width: 36px;
+    height: 4px;
+    background: #e3dbdd;
+    border-radius: 99px;
+    margin: 0 auto 10px;
+  }
+
+  .sheet-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .f-group {
+    margin-bottom: 14px;
+  }
+  .f-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #695258;
+    margin-bottom: 6px;
+  }
+
+  .f-input, .f-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e6dcde;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #3d2f33;
+    background: #faf7f8;
+    outline: none;
+    font-family: inherit;
+  }
+  .f-input:focus, .f-textarea:focus {
+    border-color: #e04b64;
+    background: #fff;
+  }
+
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .up-btn {
+    padding: 10px 8px;
+    background: #fff3f5;
+    border: 1px dashed #e04b64;
+    border-radius: 8px;
+    color: #d93b55;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .up-btn.secondary {
+    background: #f6f2ff;
+    border-color: #8e6ce6;
+    color: #7955d4;
+  }
+
+  .done-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #e04b64;
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 海报主画布 -->
+  <div class="poster-canvas" id="posterCanvas">
+
+    <!-- 1. 上方截图区域 -->
+    <div class="cert-window-wrap">
+      <div class="cert-aspect-box" id="certBox" title="点击上传捐赠证书截图">
+        <img id="certImg" alt="捐赠证书">
+        <div class="cert-empty" id="certEmpty">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+          <span>点击此处上传捐赠证书原图</span>
+          <span style="font-size:10.5px; opacity:0.75;">全自动智能识图与裁边</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 下方文字容器 -->
+    <div class="glass-text-card">
+      <div class="glass-inner-line">
+        
+        <div class="floating-flower">
+          <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
+            <defs>
+              <radialGradient id="fg" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ff9aa8"/>
+                <stop offset="70%" stop-color="#f2526b"/>
+                <stop offset="100%" stop-color="#d9324c"/>
+              </radialGradient>
+            </defs>
+            <path d="M20 4C23.5 4 25.5 8.5 23.5 13.5C21.5 16.5 18.5 16.5 16.5 13.5C14.5 8.5 16.5 4 20 4Z" fill="url(#fg)"/>
+            <path d="M35.2 15C36.3 18.3 32.6 21.6 27.3 21.3C23.8 20.3 22.8 17.5 25 14.9C29.1 11.4 34.1 11.7 35.2 15Z" fill="url(#fg)"/>
+            <path d="M29.4 32.9C26.6 35 22.3 32.5 20.9 27.4C20.8 23.8 23.1 22 26.3 23.3C30.8 26.1 32.2 30.8 29.4 32.9Z" fill="url(#fg)"/>
+            <path d="M10.6 32.9C7.8 30.8 9.2 26.1 13.7 23.3C16.9 22 19.2 23.8 19.1 27.4C17.7 32.5 13.4 35 10.6 32.9Z" fill="url(#fg)"/>
+            <path d="M4.8 15C5.9 11.7 10.9 11.4 15 14.9C17.2 17.5 16.2 20.3 12.7 21.3C7.4 21.6 3.7 18.3 4.8 15Z" fill="url(#fg)"/>
+            <circle cx="20" cy="19.5" r="3.8" fill="#ffe082" stroke="#fff" stroke-width="0.9"/>
+            <circle cx="20" cy="19.5" r="1.7" fill="#f59f00"/>
+          </svg>
+        </div>
+
+        <div class="buyer-row">
+          <span class="buyer-sub" id="vPrefix">与善良的</span>
+          <div id="vNames" style="display:inline-flex; flex-wrap:wrap; gap:10px; justify-content:center;"></div>
+          <span class="buyer-sub" id="vSuffix">一起种下小红花</span>
+        </div>
+
+        <div class="quote-body" id="vQuote"></div>
+
+        <div class="glass-footer" id="secretTrigger" title="点击打开编辑抽屉">
+          <div class="foot-item">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d93b55" stroke-width="1.8" stroke-linecap="round">
+              <path d="M8 11C6.5 5.5 4.5 3 6.5 2C8.5 1 10.5 4.5 11 10"/>
+              <path d="M16 11C17.5 5.5 19.5 3 17.5 2C15.5 1 13.5 4.5 13 10"/>
+              <ellipse cx="12" cy="15.5" rx="6.5" ry="5.5"/>
+            </svg>
+            <span id="vSign">璐璐大王 · 美好记录</span>
+          </div>
+          <div class="foot-item">
+            <span id="vDate">2026.11.06</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="#d93b55">
+              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/>
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 隐藏式底部抽屉（已清空所有滑块，只留纯文本编辑） -->
+  <div class="drawer-mask" id="mask"></div>
+  <div class="drawer-sheet" id="drawer">
+    <div class="sheet-bar"></div>
+    <div class="sheet-title">
+      <span>🎀 编辑小红花凭证</span>
+      <span style="font-size:11.5px; color:#999; font-weight:400;">全自动识图，无需手动调节</span>
+    </div>
+
+    <input type="file" id="certFileIn" accept="image/*" style="display:none;">
+    <input type="file" id="bgFileIn" accept="image/*" style="display:none;">
+    
+    <div class="btn-grid" style="margin-bottom:18px;">
+      <button type="button" class="up-btn" id="btnUpCert">📄 上传捐赠证书</button>
+      <button type="button" class="up-btn secondary" id="btnUpBg">🌸 上传唯美背景图</button>
+    </div>
+
+    <div class="f-group">
+      <label>买图妹妹网名（多个可用逗号隔开）</label>
+      <input type="text" class="f-input" id="inNames" placeholder="输入她的网名">
+    </div>
+
+    <div class="btn-grid">
+      <div class="f-group" style="margin:0;">
+        <label>网名前缀</label>
+        <input type="text" class="f-input" id="inPrefix">
+      </div>
+      <div class="f-group" style="margin:0;">
+        <label>网名后缀</label>
+        <input type="text" class="f-input" id="inSuffix">
+      </div>
+    </div>
+
+    <div class="f-group" style="margin-top:12px;">
+      <label>小红花温柔文字（【】括住的字自动高亮）</label>
+      <textarea class="f-textarea" id="inQuote" rows="3"></textarea>
+    </div>
+
+    <div class="btn-grid">
+      <div class="f-group" style="margin:0;">
+        <label>左下角署名</label>
+        <input type="text" class="f-input" id="inSign">
+      </div>
+      <div class="f-group" style="margin:0;">
+        <label>右下角日期</label>
+        <input type="text" class="f-input" id="inDate">
+      </div>
+    </div>
+
+    <button type="button" class="done-btn" id="doneBtn">完成编辑 ✨</button>
+  </div>
+
+<script>
+  const KEY = "lulu_auto_poster_v1";
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
+
+  const def = {
+    prefix: "与善良的",
+    names: "小甜兔宝贝",
+    suffix: "一起种下小红花",
+    quote: "因为你对这幅画的驻足与偏爱，世界多了一份温柔的回响。\n愿你送出的每一份【小小善意】，都化作【漫天星光】回到你身边🌸",
+    sign: "璐璐大王 · 美好记录",
+    date: today,
+    certImg: "",
+    bgImg: "",
+    /* 保存智能计算出的定位参数 */
+    imgWidth: "100%",
+    imgTop: "50%",
+    imgLeft: "50%",
+    imgTransform: "translate(-50%, -50%)"
+  };
+
+  let st = Object.assign({}, def);
+  try {
+    const saved = localStorage.getItem(KEY);
+    if (saved) st = Object.assign({}, def, JSON.parse(saved));
+  } catch (e) {}
+
+  const posterCanvas = document.getElementById("posterCanvas");
+  const certImg = document.getElementById("certImg");
+  const certEmpty = document.getElementById("certEmpty");
+
+  const vPrefix = document.getElementById("vPrefix");
+  const vNames = document.getElementById("vNames");
+  const vSuffix = document.getElementById("vSuffix");
+  const vQuote = document.getElementById("vQuote");
+  const vSign = document.getElementById("vSign");
+  const vDate = document.getElementById("vDate");
+
+  const certFileIn = document.getElementById("certFileIn");
+  const bgFileIn = document.getElementById("bgFileIn");
+
+  const inNames = document.getElementById("inNames");
+  const inPrefix = document.getElementById("inPrefix");
+  const inSuffix = document.getElementById("inSuffix");
+  const inQuote = document.getElementById("inQuote");
+  const inSign = document.getElementById("inSign");
+  const inDate = document.getElementById("inDate");
+
+  function esc(s) {
+    return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function render() {
+    if (st.bgImg) {
+      posterCanvas.style.backgroundImage = `url(${st.bgImg})`;
+    }
+
+    if (st.certImg) {
+      certImg.src = st.certImg;
+      certImg.style.display = "block";
+      certEmpty.style.display = "none";
+      // 核心：应用智能算好的排版坐标
+      certImg.style.width = st.imgWidth;
+      certImg.style.top = st.imgTop;
+      certImg.style.left = st.imgLeft;
+      certImg.style.transform = st.imgTransform;
+    } else {
+      certImg.style.display = "none";
+      certEmpty.style.display = "flex";
+    }
+
+    vPrefix.textContent = st.prefix;
+    vSuffix.textContent = st.suffix;
+    vSign.textContent = st.sign;
+    vDate.textContent = st.date;
+
+    const list = (st.names || "").split(/[,，\n]+/).map(s => s.trim()).filter(Boolean);
+    vNames.innerHTML = "";
+    (list.length ? list : ["小甜兔宝贝"]).forEach(n => {
+      const sp = document.createElement("span");
+      sp.className = "buyer-name";
+      sp.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#e04b64" style="margin-right:-2px; opacity:0.9;">
+          <path d="M12 2L14.5 9L22 11.5L14.5 14L12 21.5L9.5 14L2 11.5L9.5 9L12 2Z"/>
+        </svg>
+        <span>${esc(n)}</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#e04b64" style="margin-left:-2px; opacity:0.9;">
+          <path d="M12 2L14.5 9L22 11.5L14.5 14L12 21.5L9.5 14L2 11.5L9.5 9L12 2Z"/>
+        </svg>
+      `;
+      vNames.appendChild(sp);
+    });
+
+    vQuote.innerHTML = esc(st.quote).replace(/【(.*?)】/g, '<span class="hl">$1</span>');
+
+    try {
+      localStorage.setItem(KEY, JSON.stringify(st));
+    } catch (e) {}
+  }
+
+  function syncInputs() {
+    inNames.value = st.names;
+    inPrefix.value = st.prefix;
+    inSuffix.value = st.suffix;
+    inQuote.value = st.quote;
+    inSign.value = st.sign;
+    inDate.value = st.date;
+  }
+
+  syncInputs();
+  render();
+
+  // 上传与核心自动识图逻辑
+  document.getElementById("btnUpCert").addEventListener("click", () => certFileIn.click());
+  document.getElementById("certBox").addEventListener("click", () => certFileIn.click());
+
+  certFileIn.addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => {
+      const im = new Image();
+      im.onload = () => {
+        const ratio = im.height / im.width;
+        if (ratio > 1.9) {
+          /* 路线 A：未裁剪全屏原图。按绛绛量出的 469px 执行居中放大去顶！ */
+          st.imgWidth = "143.5%";
+          st.imgTop = "-31.5%";
+          st.imgLeft = "50%";
+          st.imgTransform = "translateX(-50%)";
+        } else {
+          /* 路线 B：已裁好图。绝对居中并微微放大 0.5% 吃掉四周边框！ */
+          st.imgWidth = "100.5%";
+          st.imgTop = "50%";
+          st.imgLeft = "50%";
+          st.imgTransform = "translate(-50%, -50%)";
+        }
+        
+        const cv = document.createElement("canvas");
+        const maxW = 920;
+        const sc = Math.min(1, maxW / im.width);
+        cv.width = im.width * sc;
+        cv.height = im.height * sc;
+        cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
+        st.certImg = cv.toDataURL("image/jpeg", 0.92);
+        render();
+      };
+      im.src = ev.target.result;
+    };
+    r.readAsDataURL(f);
+  });
+
+  document.getElementById("btnUpBg").addEventListener("click", () => bgFileIn.click());
+  bgFileIn.addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => {
+      const im = new Image();
+      im.onload = () => {
+        const cv = document.createElement("canvas");
+        const maxW = 900;
+        const sc = Math.min(1, maxW / im.width);
+        cv.width = im.width * sc;
+        cv.height = im.height * sc;
+        cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
+        st.bgImg = cv.toDataURL("image/jpeg", 0.88);
+        render();
+      };
+      im.src = ev.target.result;
+    };
+    r.readAsDataURL(f);
+  });
+
+  [
+    [inNames, "names"],
+    [inPrefix, "prefix"],
+    [inSuffix, "suffix"],
+    [inQuote, "quote"],
+    [inSign, "sign"],
+    [inDate, "date"]
+  ].forEach(([el, k]) => {
+    el.addEventListener("input", () => {
+      st[k] = el.value;
+      render();
+    });
+  });
+
+  const mask = document.getElementById("mask");
+  const drawer = document.getElementById("drawer");
+  function openD() { mask.classList.add("open"); drawer.classList.add("open"); }
+  function closeD() { mask.classList.remove("open"); drawer.classList.remove("open"); }
+
+  document.getElementById("secretTrigger").addEventListener("click", openD);
+  mask.addEventListener("click", closeD);
+  document.getElementById("doneBtn").addEventListener("click", closeD);
+</script>
+</body>
+</html>
